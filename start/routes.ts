@@ -32,10 +32,14 @@ router.group(() => {
   router.get('auth/discord', [AuthController, 'redirect']).as('auth.discord.v1')
   router.get('auth/discord/callback', [AuthController, 'callback']).as('auth.discord.callback.v1')
 
-  // public read routes (no auth required to browse rounds, entries, leaderboards, and presence)
+  // health probe within v1
+  router.get('health', [HealthChecksController]).as('health.v1')
+
+  // public read routes (no auth required to browse rounds, entries, leaderboards, ballots ledger, and presence)
   router.get('rounds', [RoundsController, 'index'])
   router.get('rounds/:id', [RoundsController, 'show'])
   router.get('rounds/:roundId/entries', [EntriesController, 'index'])
+  router.get('rounds/:roundId/ballots', [BallotsController, 'index'])
   router.get('rounds/:roundId/leaderboard', [LeaderboardController, 'show'])
   router.get('rounds/:roundId/results', [LeaderboardController, 'finalized'])
   router.get('shots', [ShotsController, 'index'])
