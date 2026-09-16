@@ -86,10 +86,6 @@ router.group(() => {
       router.get('rounds/:roundId/events', [TelemetryController, 'stream'])
     }).use(middleware.role({ roles: ['supervisor'] }))
 
-    // shots - general list and details (any authenticated user)
-    router.get('shots', [ShotsController, 'index'])
-    router.get('shots/:id', [ShotsController, 'show'])
-
     // grab-box contributor actions (contributor+)
     router.group(() => {
       router.post('shots/:id/claim', [ShotsController, 'claim'])
