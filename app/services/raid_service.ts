@@ -1,8 +1,10 @@
 import BallotModel from '#models/ballot'
 import Entry from '#models/entry'
+import VotingRound from '#models/voting_round'
 import RaidTelemetryModel from '#models/raid_telemetry'
 import db from '@adonisjs/lucid/services/db'
 import { eventBus } from './event_bus.js'
+import { discordWebhookService } from './discord_webhook_service.js'
 import { analyze_raid_risk, type EntryScoreBreakdown } from '@platform/internal-logic'
 
 export class RaidService {
@@ -54,9 +56,11 @@ export class RaidService {
 
     // quarantine instantly if it looks really bad
     if (telemetry.severity === 'CRITICAL_RAID') {
-      const entry = await Entry.findOrFail(entryId)
-      entry.isQuarantined = true
-      await entry.save()
+      const entry = await Entry.find(entryId)
+      if (entry) {
+        entry.isQuarantined = true
+        await entry.save()
+      }
     }
 
     // let the system know about suspect activity
@@ -67,6 +71,23 @@ export class RaidService {
         severity: telemetry.severity,
         compositeScore: telemetry.compositeScore,
       })
+
+      // Dispatch real-time alert to the supervisor Discord channel
+      try {
+        const entry = await Entry.find(entryId)
+        const round = await VotingRound.find(roundId)
+        if (entry && round) {
+          await discordWebhookService.notifyRaidAlert(
+            round.title,
+            entry.title,
+            telemetry.severity,
+            telemetry.rankEntropy,
+            telemetry.velocityZScore
+          )
+        }
+      } catch {
+        // notification failure should not block transaction
+      }
     }
 
     return record

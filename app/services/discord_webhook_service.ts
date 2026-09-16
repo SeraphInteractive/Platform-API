@@ -122,6 +122,27 @@ export class DiscordWebhookService {
       await this.postWebhook(publicUrl, embed)
     }
   }
+
+  async notifyRaidAlert(
+    roundTitle: string,
+    entryTitle: string,
+    severity: string,
+    entropy: number,
+    zScore: number
+  ): Promise<void> {
+    const supervisorUrl = env.get('DISCORD_SUPERVISOR_WEBHOOK_URL') || env.get('DISCORD_WEBHOOK_URL')
+    const isCritical = severity === 'CRITICAL_RAID'
+    await this.postWebhook(supervisorUrl, {
+      title: `${isCritical ? 'CRITICAL RAID' : 'SUSPICIOUS TELEMETRY'}: ${entryTitle}`,
+      description: `Raid anomaly triggered on proposal **${entryTitle}** in round **${roundTitle}**.`,
+      color: isCritical ? 0xef4444 : 0xf59e0b,
+      fields: [
+        { name: 'Severity', value: severity, inline: true },
+        { name: 'Entropy H(X)', value: `${entropy.toFixed(3)} bits`, inline: true },
+        { name: 'Velocity Sigma', value: `Z = ${zScore.toFixed(2)}`, inline: true },
+      ],
+    })
+  }
 }
 
 export const discordWebhookService = new DiscordWebhookService()
