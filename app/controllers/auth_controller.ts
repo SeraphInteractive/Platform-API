@@ -5,11 +5,16 @@ import User from '#models/user'
 import env from '#start/env'
 
 export default class AuthController {
-  async redirect({ response }: HttpContext) {
+  async redirect({ request, response }: HttpContext) {
     const clientId = env.get('DISCORD_CLIENT_ID') as string
     const redirectUri = encodeURIComponent((env.get('DISCORD_REDIRECT_URI') as string) || '')
     const scope = encodeURIComponent('identify')
-    const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`
+
+    // capture return_to or referer as state so callback redirects to the right frontend origin
+    const returnTo = request.input('return_to') || request.input('redirect_to') || request.header('referer') || ''
+    const stateParam = returnTo ? `&state=${encodeURIComponent(returnTo)}` : ''
+
+    const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}${stateParam}`
     return response.redirect(discordAuthUrl)
   }
 
@@ -18,6 +23,18 @@ export default class AuthController {
     if (!origin || origin === '*' || !origin.startsWith('http')) {
       origin = 'http://localhost:5173'
     }
+
+    // if state contains a valid origin URL, use it as redirect target
+    const state = request.input('state')
+    if (state && (state.startsWith('http://') || state.startsWith('https://'))) {
+      try {
+        const parsed = new URL(state)
+        origin = parsed.origin
+      } catch {
+        // fallback to default origin
+      }
+    }
+
     const accept = request.header('accept') || ''
     const isBrowserNavigation = accept.includes('text/html') || !request.header('x-requested-with')
 

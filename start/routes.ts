@@ -20,6 +20,10 @@ router.get('/', () => {
 // container health check: 200 when postgres and redis are reachable, 503 otherwise
 router.get('/health', [HealthChecksController])
 
+// root level aliases so /auth/discord and /auth/discord/callback always resolve
+router.get('auth/discord', [AuthController, 'redirect']).as('auth.discord.root')
+router.get('auth/discord/callback', [AuthController, 'callback']).as('auth.discord.callback.root')
+
 // unversioned alias of the oauth routes. named separately: routes are auto-named after their
 // controller method, and the same names are taken by the /api/v1 group below
 router.group(() => {
