@@ -24,12 +24,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-    # Optional: trigger a Dokploy redeploy of the Platform-Deployment compose stack after a
-    # successful push to main. Configure the three repository secrets to enable it.
+    # Optional: ask Dokploy to redeploy the Platform-Deployment stack once the image is on GHCR.
+    # Set the DOKPLOY_WEBHOOK_URL repository secret (the compose service's webhook url) to enable it.
     env:
-      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
-      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-      DOKPLOY_COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
+      DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,10 +72,23 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false
 
+      # Dokploy's compose webhook validates the request like a GitHub push event: the branch in
+      # `ref` must be the branch configured on the compose service (Platform-Deployment's main),
+      # and a mismatch answers 301, so check for an explicit 200 instead of relying on --fail.
       - name: Redeploy on Dokploy
-        if: github.ref == 'refs/heads/main' && env.DOKPLOY_URL != '' && env.DOKPLOY_API_KEY != '' && env.DOKPLOY_COMPOSE_ID != ''
+        if: github.ref == 'refs/heads/main' && env.DOKPLOY_WEBHOOK_URL != ''
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          curl --fail --silent --show-error --request POST "${DOKPLOY_URL%/}/api/compose.deploy" \
-            --header "x-api-key: ${DOKPLOY_API_KEY}" \
+          subject="${COMMIT_MESSAGE%%$'\n'*}"
+          payload=$(jq --compact-output --null-input \
+            --arg ref "refs/heads/main" \
+            --arg message "${IMAGE}:sha-${GITHUB_SHA::7} published (${subject:-manual run})" \
+            '{ref: $ref, head_commit: {message: $message}, commits: []}')
+          status=$(curl --silent --show-error --output response.json --write-out '%{http_code}' \
+            --request POST "${DOKPLOY_WEBHOOK_URL}" \
             --header "Content-Type: application/json" \
-            --data "{\"composeId\": \"${DOKPLOY_COMPOSE_ID}\"}"
+            --header "X-GitHub-Event: push" \
+            --data "${payload}")
+          echo "dokploy answered HTTP ${status}: $(cat response.json)"
+          test "${status}" = "200"
