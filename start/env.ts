@@ -21,6 +21,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   DISCORD_CLIENT_ID: Env.schema.string.optional(),
   DISCORD_CLIENT_SECRET: Env.schema.string.optional(),
   DISCORD_REDIRECT_URI: Env.schema.string.optional(),
+  DISCORD_BOT_TOKEN: Env.schema.string.optional(),
+  DISCORD_GUILD_ID: Env.schema.string.optional(),
+  DISCORD_CONTRIBUTOR_ROLE_ID: Env.schema.string.optional(),
+  DISCORD_OBSERVER_ROLE_ID: Env.schema.string.optional(),
 
   CORS_ORIGIN: Env.schema.string(),
 

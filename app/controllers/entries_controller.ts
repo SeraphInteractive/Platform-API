@@ -3,6 +3,8 @@ import Entry from '#models/entry'
 import VotingRound from '#models/voting_round'
 import { createEntryValidator, updateEntryValidator, updateEntryStatusValidator } from '#validators/entry_validator'
 
+import discordRoleService from '#services/discord_role_service'
+
 export default class EntriesController {
   async index({ params, request }: HttpContext) {
     const statusParam = request.input('status')
@@ -36,6 +38,11 @@ export default class EntriesController {
     }
 
     await entry.save()
+
+    // Auto-grant Discord Contributor role to the submitter
+    if (user?.discordId) {
+      discordRoleService.grantRole(user.discordId).catch(() => {})
+    }
     
     return { data: entry }
   }
